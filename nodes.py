@@ -46,7 +46,7 @@ class SANADiffuse:
             "height": ("INT", {"default": 512, "min": 0, "max": 5000, "step": 64}),
             "cfg": ("FLOAT", {"default": 8.0, "min": 0, "max": 30.0, "step": 0.1}),
             "pag_scale": ("FLOAT", {"default": 2.0, "min": 0, "max": 30.0, "step": 0.1}),
-            "img2img": (["disable", "enable"], ),  # Removed default here
+            "img2img": (["disable", "enable"],),
             "embeds": ("class",),
             "model_path": ([f'diffusers/{i}' for i in os.listdir(folder_paths.get_folder_paths("diffusers")[0]) 
                           if os.path.isdir(folder_paths.get_folder_paths("diffusers")[0]+f"/{i}")]+SANADiffuse.models,),
@@ -65,6 +65,7 @@ class SANADiffuse:
         # Add validation at the start of the method
         if img2img not in ["disable", "enable"]:
             img2img = "disable"  # Set a default if invalid value received
+        
         device = "cuda" if torch.cuda.is_available() else "cpu"
         base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
         model_path = get_model_path(model_path, base_path, self.models)

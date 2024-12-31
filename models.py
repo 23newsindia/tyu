@@ -15,41 +15,62 @@ def load_models(model_path, device="cuda"):
             tokenizer_path = os.path.join(model_path, "tokenizer")
             scheduler_path = os.path.join(model_path, "scheduler")
 
-            # Verify required files exist
-            required_files = {
-                "vae": ["config.json", "diffusion_pytorch_model.safetensors"],
-                "text_encoder": ["config.json", "pytorch_model.bin"],
-                "transformer": ["config.json", "diffusion_pytorch_model.safetensors"],
-                "tokenizer": ["tokenizer_config.json", "vocab.json", "merges.txt"],
-                "scheduler": ["scheduler_config.json"]
-            }
+            # Load tokenizer
+            tokenizer = AutoTokenizer.from_pretrained(
+                tokenizer_path,
+                trust_remote_code=True,
+                use_fast=True
+            )
 
-            for folder, files in required_files.items():
-                folder_path = os.path.join(model_path, folder)
-                if not os.path.exists(folder_path):
-                    raise ValueError(f"Missing required folder: {folder}")
-                for file in files:
-                    file_path = os.path.join(folder_path, file)
-                    if not os.path.exists(file_path):
-                        # Try alternative file format
-                        alt_file = file.replace(".safetensors", ".bin")
-                        alt_path = os.path.join(folder_path, alt_file)
-                        if not os.path.exists(alt_path):
-                            raise ValueError(f"Missing required file: {file} in {folder}")
+            # Load text encoder
+            text_encoder = AutoModelForCausalLM.from_pretrained(
+                text_encoder_path,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                use_safetensors=True
+            )
 
-            # Load components
-            tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-            text_encoder = AutoModelForCausalLM.from_pretrained(text_encoder_path)
-            vae = AutoencoderKL.from_pretrained(vae_path)
-            transformer = UNet2DConditionModel.from_pretrained(transformer_path)
+            # Load VAE with special handling
+            vae = AutoencoderKL.from_pretrained(
+                vae_path,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                use_safetensors=True,
+                low_cpu_mem_usage=False,
+                device_map=None
+            )
+
+            # Load transformer
+            transformer = UNet2DConditionModel.from_pretrained(
+                transformer_path,
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                use_safetensors=True
+            )
+
+            # Load scheduler
             scheduler = DPMSolverMultistepScheduler.from_pretrained(scheduler_path)
 
         else:
-            # Try loading from Hugging Face Hub
+            # Load from Hugging Face Hub
             tokenizer = AutoTokenizer.from_pretrained(model_path, subfolder="tokenizer")
-            text_encoder = AutoModelForCausalLM.from_pretrained(model_path, subfolder="text_encoder")
-            vae = AutoencoderKL.from_pretrained(model_path, subfolder="vae")
-            transformer = UNet2DConditionModel.from_pretrained(model_path, subfolder="transformer")
+            text_encoder = AutoModelForCausalLM.from_pretrained(
+                model_path, 
+                subfolder="text_encoder",
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                use_safetensors=True
+            )
+            vae = AutoencoderKL.from_pretrained(
+                model_path,
+                subfolder="vae",
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                use_safetensors=True,
+                low_cpu_mem_usage=False,
+                device_map=None
+            )
+            transformer = UNet2DConditionModel.from_pretrained(
+                model_path,
+                subfolder="transformer",
+                torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+                use_safetensors=True
+            )
             scheduler = DPMSolverMultistepScheduler.from_pretrained(model_path, subfolder="scheduler")
 
         # Move models to device
@@ -61,8 +82,6 @@ def load_models(model_path, device="cuda"):
 
     except Exception as e:
         raise ValueError(f"Error loading SANA models: {str(e)}\nPlease ensure all required model files are present in the correct structure.")
-
-
 
 
 def cleanup_models(*models):
